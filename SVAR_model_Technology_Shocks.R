@@ -22,14 +22,9 @@ library(ggplot2)
 library(patchwork)
 library(gridExtra)
 
-
-
-# EXPORTO DATA
 GDP   <- read_excel(here("data", "GDP - USA.xlsx"))
 HOURS <- read_excel(here("data", "HOURS - USA.xlsx"))
 empleo_mensual   <- read_excel(here("data", "EMP - MONTHLY - USA.xlsx"))
-
-# EMPLEO TRIMESTRAL 
 
 EMPLOYMENT <- empleo_mensual %>%
   # Asegurar que 'date' sea reconocido como fecha
@@ -40,8 +35,6 @@ EMPLOYMENT <- empleo_mensual %>%
   summarise(CE16OV = mean(CE16OV, na.rm = TRUE)) %>%
   ungroup()
 
-
-# RENOMBRO LAS COLUMNAS
 GDP <- GDP %>%
   rename(GDPR = GDPC1)
 
@@ -50,8 +43,6 @@ EMPLOYMENT <- EMPLOYMENT %>%
 
 HOURS <- HOURS %>%
   rename(HRS = HOANBS)
-
-# DELIMITO 1948:1 A 1994:4
 
 GDP_cleaned <- GDP %>%
   mutate(observation_date = as.Date(observation_date)) %>% 
@@ -68,7 +59,6 @@ HRS_cleaned <- HOURS %>%
   filter(observation_date >= as.Date("1948-01-01") & 
            observation_date <= as.Date("1994-10-01"))
 
-#APLICAMOS LOGARITMO 
 
 GDP_cleaned <- GDP_cleaned %>%
   mutate(y = log(GDPR))
@@ -79,8 +69,6 @@ EMP_cleaned <- EMP_cleaned %>%
 HRS_cleaned <- HRS_cleaned %>%
   mutate(n = log(HRS))
 
-# PRODUCTIVIDAD HRS y PRODUCTIVIDAD EMP
-
 data_final <- GDP_cleaned %>%
   inner_join(HRS_cleaned, by = "observation_date") %>%
   inner_join(EMP_cleaned, by = "observation_date") 
@@ -90,11 +78,8 @@ productivity_table <- data_final %>%
   mutate(x_emp = y - e) %>%
   select(observation_date, y, n, e, x_hrs, x_emp)
 
-# BASE DE DATOS FINALES 
 DatosFinal <- productivity_table %>%
   rename(date = observation_date) 
-
-# Tasas de crecimiento 
 
 DatosFinal <- DatosFinal %>%
   # Aseguramos el orden cronológico
@@ -111,8 +96,6 @@ DatosFinal <- DatosFinal %>%
 #######
 # TABLE 1 
 # PANEL A
-
-# Filtramos NA causados por la primera diferencia
 df_hrs <- na.omit(DatosFinal[, c("dx_hrs", "dn")])
 df_emp <- na.omit(DatosFinal[, c("dx_emp", "de")])
 
@@ -161,9 +144,6 @@ calc_correlations <- function(df, var_names) {
            NonTech_Conditional = cond_cor_nontech))
 }
 
-
-# EJECUCIÓN DEL MODELO PARA HORAS Y EMPLEO
-
 # Resultados para Horas (Panel A - Fila 1)
 res_hours <- calc_correlations(df_hrs, c("dx_hrs", "dn"))
 
@@ -176,10 +156,7 @@ print(round(Tabla1_PanelA, 2))
 
 ###### FIGURA 1: PRODUCTIVDAD vs HORAS: DATA & CHOQUES
 
-# multiplico por 100 los datos ## reescalado
 df_hrs <- df_hrs*100
-#########
-
 # 0. Definimos en un ambiente general 
 var_est <- VAR(df_hrs, p = 4, type = "const") # se estima el modelo VAR
 svar_bq <- BQ(var_est) # se aplica la restricción estructural
@@ -219,7 +196,6 @@ df_plot <- data.frame(
   non_dn = non_tech_data[,2], non_dx = non_tech_data[,1]
 )
 
-############### reescalada
 # Definimos un estilo de cuadrícula común para las tres gráficas
 estilo_gali <- theme_light() + 
   theme(
@@ -259,24 +235,6 @@ g3 <- ggplot(df_plot, aes(x=non_dn, y=non_dx)) +
   estilo_gali
 
 # Mostrar las gráficas combinadas
-grid.arrange(g1, g2, g3, ncol=1)
-
-
-
-############# otro diseño
-# Gráfica A: Data (Correlación Incondicional ~ -0.26) [cite: 305, 325]
-g1 <- ggplot(df_plot, aes(x=dn, y=dx)) + geom_point(alpha=0.5) + 
-  geom_smooth(method="lm", color="black", se=F) + labs(title="Data", x="hours", y="productivity") + theme_minimal()
-
-# Gráfica B: Technology Component (Correlación Condicional ~ -0.82) [cite: 310, 325]
-g2 <- ggplot(df_plot, aes(x=tech_dn, y=tech_dx)) + geom_point(alpha=0.5) + 
-  geom_smooth(method="lm", color="red", se=F) + labs(title="Technology Component", x="hours", y="productivity") + theme_minimal()
-
-# Gráfica C: Nontechnology Component (Correlación Condicional ~ 0.26) [cite: 310, 325, 341]
-g3 <- ggplot(df_plot, aes(x=non_dn, y=non_dx)) + geom_point(alpha=0.5) + 
-  geom_smooth(method="lm", color="blue", se=F) + labs(title="Nontechnology Component", x="hours", y="productivity") + theme_minimal()
-
-# Mostrar resultados
 grid.arrange(g1, g2, g3, ncol=1)
 
 #### FIGURA 2: IMPULSO RESPUESTA
@@ -351,7 +309,7 @@ plot_gali(nontech_hours, nontech_hours_low, nontech_hours_up, "", "")
 # Título
 mtext("Trimestres tras el shock", side = 1, outer = TRUE, cex = 0.9)
 
-##### prueba para errores estandar ######## 
+##### modelo con errores estándar
 
 calc_correlations_with_significance <- function(df, var_names, lags = 4, horizon = 100, draws = 500) {
   
